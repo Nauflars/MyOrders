@@ -1,0 +1,16 @@
+services:
+    # SAP API Client
+    App\Infrastructure\ExternalApi\SapApiClient:
+        arguments:
+            $httpClient: '@http_client'
+            $logger: '@monolog.logger'
+
+    # Repository Interfaces -> Implementations
+    App\Domain\Repository\CustomerRepositoryInterface:
+        class: App\Infrastructure\Repository\DoctrineCustomerRepository
+        
+    App\Domain\Repository\MaterialRepositoryInterface:
+        class: App\Infrastructure\Repository\DoctrineMaterialRepository
+        
+    App\Domain\Repository\CustomerMaterialRepositoryInterface:
+        class: App\Infrastructure\Repository\DoctrineCustomerMaterialRepository

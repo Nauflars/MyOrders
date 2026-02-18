@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Material Catalog - {{ customer.name }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #06038D 0%, #E87722 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: #fff;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #333333;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #A9A8B4;
+            font-size: 14px;
+        }
+
+        .sync-status {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .sync-status.syncing {
+            background: linear-gradient(90deg, #FFF8E1 0%, #FFECB3 100%);
+        }
+
+        .sync-status.complete {
+            background: #d4edda;
+        }
+
+        .sync-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .sync-label {
+            font-weight: 600;
+            color: #333333;
+        }
+
+        .sync-count {
+            font-size: 14px;
+            color: #A9A8B4;
+        }
+
+        .progress-bar {
+            height: 24px;
+            background: #EAEAEA;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #1AA04F 0%, #13803F 100%);
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-label {
+            color: #A9A8B4;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            color: #333333;
+            font-size: 32px;
+            font-weight: 700;
+        }
+
+        .materials-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+        }
+
+        .material-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            border-left: 4px solid #E87722;
+        }
+
+        .material-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+            border-left-color: #06038D;
+        }
+
+        .material-number {
+            font-size: 12px;
+            color: #E87722;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .material-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333333;
+            margin-bottom: 12px;
+            min-height: 48px;
+        }
+
+        .material-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #EAEAEA;
+        }
+
+        .detail-item {
+            font-size: 13px;
+        }
+
+        .detail-label {
+            color: #A9A8B4;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .detail-value {
+            color: #333333;
+            font-weight: 600;
+        }
+
+        .price {
+            font-size: 24px;
+            font-weight: 700;
+            color: #06038D;
+            margin-top: 12px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-available {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .no-materials {
+            background: #fff;
+            border-radius: 12px;
+            padding: 60px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .no-materials h2 {
+            color: #333333;
+            margin-bottom: 12px;
+        }
+
+        .no-materials p {
+            color: #A9A8B4;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #EAEAEA;
+            border-top-color: #E87722;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📦 Material Catalog</h1>
+            <p>Customer: {{ customer.name }} ({{ customer.sap_id }}) | Sales Org: {{ customer.sales_org }}</p>
+        </div>
+
+        <div class="sync-status {% if sync_stats.async_count > 0 %}syncing{% else %}complete{% endif %}" id="syncStatus">
+            <div class="sync-header">
+                <div class="sync-label">
+                    {% if sync_stats.async_count > 0 %}
+                        <span class="spinner"></span>
+                        Synchronization in Progress
+                    {% else %}
+                        ✅ Synchronization Complete
+                    {% endif %}
+                </div>
+                <div class="sync-count" id="syncCount">
+                    {{ synced_materials }} / {{ total_materials }} materials synced
+                    {% if sync_stats.async_count > 0 %}
+                        ({{ sync_stats.async_count }} pending)
+                    {% endif %}
+                </div>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: {{ (synced_materials / total_materials * 100)|number_format(2) }}%">
+                    <span id="progressText">{{ (synced_materials / total_materials * 100)|number_format(0) }}%</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Materials</div>
+                <div class="stat-value">{{ total_materials }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Available for You</div>
+                <div class="stat-value" id="availableCount">{{ synced_materials }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Pending Sync</div>
+                <div class="stat-value" id="pendingCount">{{ sync_stats.async_count }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Sync Errors</div>
+                <div class="stat-value">{{ sync_stats.failed_count }}</div>
+            </div>
+        </div>
+
+        {% if materials|length > 0 %}
+            <div class="materials-grid" id="materialsGrid">
+                {% for material in materials %}
+                    <div class="material-card">
+                        <div class="material-number">{{ material.sap_material_number }}</div>
+                        <div class="material-name">{{ material.description }}</div>
+                        
+                        <div class="price">
+                            {% if material.price > 0 %}
+                                {{ material.price|number_format(2) }} {{ material.currency }}
+                            {% else %}
+                                Contact for Price
+                            {% endif %}
+                        </div>
+
+                        <div class="material-details">
+                            {% if material.weight %}
+                                <div class="detail-item">
+                                    <span class="detail-label">Weight</span>
+                                    <span class="detail-value">{{ material.weight }} {{ material.weight_unit }}</span>
+                                </div>
+                            {% endif %}
+                            {% if material.volume %}
+                                <div class="detail-item">
+                                    <span class="detail-label">Volume</span>
+                                    <span class="detail-value">{{ material.volume }} {{ material.volume_unit }}</span>
+                                </div>
+                            {% endif %}
+                            {% if material.base_unit %}
+                                <div class="detail-item">
+                                    <span class="detail-label">Unit</span>
+                                    <span class="detail-value">{{ material.base_unit }}</span>
+                                </div>
+                            {% endif %}
+                            <div class="detail-item">
+                                <span class="detail-label">Status</span>
+                                <span class="badge badge-available">Available</span>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="no-materials">
+                <h2>🔄 Synchronizing Materials</h2>
+                <p>Please wait while we sync your catalog from SAP...</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        // Auto-refresh sync status every 3 seconds if syncing
+        {% if sync_stats.async_count > 0 %}
+        setInterval(async () => {
+            try {
+                const response = await fetch('/api/catalog/{{ customer.sales_org }}/{{ customer.sap_id }}/sync-status');
+                const data = await response.json();
+                
+                // Update progress bar
+                document.getElementById('progressFill').style.width = data.progress + '%';
+                document.getElementById('progressText').textContent = Math.round(data.progress) + '%';
+                
+                // Update counts
+                document.getElementById('syncCount').textContent = 
+                    data.synced_prices + ' / ' + data.total_materials + ' materials synced' +
+                    (data.pending_messages > 0 ? ' (' + data.pending_messages + ' pending)' : '');
+                
+                document.getElementById('availableCount').textContent = data.synced_prices;
+                document.getElementById('pendingCount').textContent = data.pending_messages;
+                
+                // Update status
+                const statusDiv = document.getElementById('syncStatus');
+                if (!data.is_syncing) {
+                    statusDiv.classList.remove('syncing');
+                    statusDiv.classList.add('complete');
+                    
+                    // Reload page to show new materials
+                    setTimeout(() => location.reload(), 2000);
+                }
+            } catch (error) {
+                console.error('Failed to update sync status:', error);
+            }
+        }, 3000);
+        {% endif %}
+    </script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    # Import SAP integration services
+    _instanceof:
+        App\Domain\Repository\CustomerRepositoryInterface:
+            public: true
+        App\Domain\Repository\MaterialRepositoryInterface:
+            public: true
+        App\Domain\Repository\CustomerMaterialRepositoryInterface:
+            public: true
+
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/Domain/Entity/'
+            - '../src/Kernel.php'
+
+    # Controllers are imported separately to make sure services can be injected
+    # as action arguments even if you don't extend any base controller class
+    App\UI\Controller\:
+        resource: '../src/UI/Controller/'
+        tags: ['controller.service_arguments']
+
+    # Domain Services
+    App\Domain\:
+        resource: '../src/Domain/'
+        exclude:
+            - '../src/Domain/Entity/'
+
+    # Application Services
+    App\Application\:
+        resource: '../src/Application/'
+
+    # Infrastructure Services
+    App\Infrastructure\:
+        resource: '../src/Infrastructure/'
+        exclude:
+            - '../src/Infrastructure/Persistence/Doctrine/Entity/'
