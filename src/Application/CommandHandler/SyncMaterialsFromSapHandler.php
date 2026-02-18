@@ -55,6 +55,7 @@ final readonly class SyncMaterialsFromSapHandler
 
             foreach ($sapData['X_MAT_FOUND'] as $sapMaterial) {
                 $materialNumber = $sapMaterial['MATNR'] ?? null;
+                $posnr = $sapMaterial['POSNR'] ?? null; // Extract POSNR from SAP response
                 
                 if (!$materialNumber) {
                     $this->logger->warning('Material without MATNR, skipping', [
@@ -62,6 +63,11 @@ final readonly class SyncMaterialsFromSapHandler
                     ]);
                     continue;
                 }
+
+                $this->logger->debug('Processing SAP material', [
+                    'material_number' => $materialNumber,
+                    'posnr' => $posnr,
+                ]);
 
                 // Check if material exists
                 $material = $this->materialRepository->findBySapMaterialNumber($materialNumber);
@@ -89,15 +95,12 @@ final readonly class SyncMaterialsFromSapHandler
                 // Save material
                 $this->materialRepository->save($material);
 
-                // Dispatch price sync for this material
+                // Dispatch price sync for this material WITH POSNR
                 $this->messageBus->dispatch(new SyncMaterialPriceCommand(
                     customerId: $command->customerId,
                     materialNumber: $materialNumber,
-                    tvkoData: $command->tvkoData,
-                    tvakData: $command->tvakData,
-                    customerData: $command->customerData,
-                    weData: $command->weData,
-                    rgData: $command->rgData
+                    salesOrg: $command->tvkoData['VKORG'] ?? '',
+                    posnr: $posnr // Include POSNR for accurate pricing
                 ));
             }
 

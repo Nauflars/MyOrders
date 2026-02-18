@@ -62,12 +62,21 @@ final readonly class SapApiClient implements SapApiClientInterface
         array $tvakData,
         array $customerData,
         array $weData,
-        array $rgData
+        array $rgData,
+        ?string $posnr = null
     ): array {
         $this->logger->info('Fetching material price from SAP', [
             'customer_id' => $customerId,
             'material_number' => $materialNumber,
+            'posnr' => $posnr,
         ]);
+
+        $matnrData = ['MATNR' => $materialNumber];
+        
+        // Include POSNR if provided (critical for accurate pricing)
+        if ($posnr !== null) {
+            $matnrData['POSNR'] = $posnr;
+        }
 
         return $this->post('/ZSDO_EBU_SHOW_MATERIAL_PRICE', [
             'I_WA_TVKO' => $tvkoData,
@@ -75,9 +84,7 @@ final readonly class SapApiClient implements SapApiClientInterface
             'I_WA_AG' => $customerData,
             'I_WA_WE' => $weData,
             'I_WA_RG' => $rgData,
-            'IN_WA_MATNR' => [
-                'MATNR' => $materialNumber,
-            ],
+            'IN_WA_MATNR' => $matnrData,
         ]);
     }
 

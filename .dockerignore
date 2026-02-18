@@ -1,0 +1,66 @@
+# MyOrders - Docker Ignore
+
+# Git
+.git/
+.github/
+.gitignore
+
+# Docker files
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# Documentation
+*.md
+PHASE4-5-SUMMARY.md
+SAP-INTEGRATION.md
+WORKERS.md
+specs/
+
+# IDE and editor files
+.idea/
+.vscode/
+.claude/
+*.swp
+*.swo
+*~
+.DS_Store
+.editorconfig
+
+# Environment files
+.env*
+!.env.example
+
+# Logs
+*.log
+var/log/
+
+# Cache and temporary files
+var/cache/
+.phpunit.cache/
+.phpunit.result.cache
+
+# Vendor (will be installed in container)
+vendor/
+
+# Tests
+tests/
+phpunit.xml*
+phpunit.dist.xml
+
+# Scripts
+*.ps1
+*.sh
+check-services.sh
+diagnose.ps1
+deploy.ps1
+install.ps1
+quick-fix.ps1
+
+# Test files
+test-*.php
+*Test.php
+nul
+
+# Composer lock (optional - uncomment if you want to install from composer.json only)
+# composer.lock

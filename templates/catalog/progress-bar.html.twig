@@ -1,0 +1,199 @@
+{# Progress bar partial with JavaScript polling for sync status #}
+<div class="sync-progress-container" 
+     data-customer-id="{{ customerId }}" 
+     data-sales-org="{{ salesOrg }}"
+     data-poll-url="{{ path('app_sync_progress') }}">
+    
+    <div class="sync-status" id="syncStatus" style="display: none;">
+        <div class="sync-header">
+            <span class="sync-label">
+                <span id="syncStatusIcon">🔄</span>
+                <span id="syncStatusText">Synchronizing materials...</span>
+            </span>
+            <span class="sync-count" id="syncCount">0 / 0</span>
+        </div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 0%;">
+                <span id="progressPercent">0%</span>
+            </div>
+        </div>
+        
+        <div class="sync-meta" style="margin-top: 12px; font-size: 13px; color: #A9A8B4;">
+            <span id="syncElapsed"></span>
+            <span id="syncEta" style="margin-left: 16px;"></span>
+        </div>
+        
+        <div class="sync-error" id="syncError" style="display: none; margin-top: 12px; padding: 12px; background: #f8d7da; color: #721c24; border-radius: 8px;">
+            <strong>Error:</strong> <span id="syncErrorMessage"></span>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const container = document.querySelector('.sync-progress-container');
+    if (!container) return;
+    
+    const customerId = container.dataset.customerId;
+    const salesOrg = container.dataset.salesOrg;
+    const pollUrl = container.dataset.pollUrl;
+    
+    const statusDiv = document.getElementById('syncStatus');
+    const statusIcon = document.getElementById('syncStatusIcon');
+    const statusText = document.getElementById('syncStatusText');
+    const syncCount = document.getElementById('syncCount');
+    const progressFill = document.getElementById('progressFill');
+    const progressPercent = document.getElementById('progressPercent');
+    const syncElapsed = document.getElementById('syncElapsed');
+    const syncEta = document.getElementById('syncEta');
+    const syncError = document.getElementById('syncError');
+    const syncErrorMessage = document.getElementById('syncErrorMessage');
+    
+    let pollInterval = null;
+    
+    function formatDuration(seconds) {
+        if (seconds < 60) return `${seconds}s`;
+        if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+        return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+    }
+    
+    function updateProgress() {
+        fetch(`${pollUrl}?customer_id=${customerId}&sales_org=${salesOrg}`)
+            .then(res => res.json())
+            .then(data => {
+                if (!data || !data.status) {
+                    // No sync in progress
+                    statusDiv.style.display = 'none';
+                    if (pollInterval) {
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+                    }
+                    return;
+                }
+                
+                // Show sync status
+                statusDiv.style.display = 'block';
+                statusDiv.className = 'sync-status ' + (data.status === 'in_progress' ? 'syncing' : 'complete');
+                
+                // Update icon and text
+                if (data.status === 'in_progress') {
+                    statusIcon.textContent = '🔄';
+                    statusText.textContent = 'Synchronizing materials...';
+                } else if (data.status === 'completed') {
+                    statusIcon.textContent = '✅';
+                    statusText.textContent = 'Synchronization complete';
+                    if (pollInterval) {
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+                        // Reload page after 2 seconds to show new materials
+                        setTimeout(() => location.reload(), 2000);
+                    }
+                } else if (data.status === 'failed') {
+                    statusIcon.textContent = '❌';
+                    statusText.textContent = 'Synchronization failed';
+                    syncError.style.display = 'block';
+                    syncErrorMessage.textContent = data.error_message || 'Unknown error';
+                    if (pollInterval) {
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+                    }
+                }
+                
+                // Update counts and progress
+                syncCount.textContent = `${data.processed_materials} / ${data.total_materials}`;
+                const percent = data.percentage_complete || 0;
+                progressFill.style.width = `${percent}%`;
+                progressPercent.textContent = `${percent}%`;
+                
+                // Update elapsed time
+                if (data.elapsed_seconds) {
+                    syncElapsed.textContent = `Elapsed: ${formatDuration(data.elapsed_seconds)}`;
+                }
+                
+                // Update ETA
+                if (data.estimated_time_remaining && data.status === 'in_progress') {
+                    syncEta.textContent = `ETA: ${formatDuration(data.estimated_time_remaining)}`;
+                } else {
+                    syncEta.textContent = '';
+                }
+            })
+            .catch(err => {
+                console.error('Failed to fetch sync progress:', err);
+            });
+    }
+    
+    // Initial check
+    updateProgress();
+    
+    // Poll every 2 seconds
+    pollInterval = setInterval(updateProgress, 2000);
+    
+    // Stop polling when page unloads
+    window.addEventListener('beforeunload', () => {
+        if (pollInterval) {
+            clearInterval(pollInterval);
+        }
+    });
+})();
+</script>
+
+<style>
+.sync-progress-container {
+    margin-bottom: 20px;
+}
+
+.sync-status {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.sync-status.syncing {
+    background: linear-gradient(90deg, #FFF8E1 0%, #FFECB3 100%);
+}
+
+.sync-status.complete {
+    background: #d4edda;
+}
+
+.sync-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.sync-label {
+    font-weight: 600;
+    color: #333333;
+    font-size: 16px;
+}
+
+.sync-count {
+    font-size: 14px;
+    color: #A9A8B4;
+}
+
+.progress-bar {
+    height: 24px;
+    background: #EAEAEA;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #1AA04F 0%, #13803F 100%);
+    transition: width 0.5s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+}
+</style>

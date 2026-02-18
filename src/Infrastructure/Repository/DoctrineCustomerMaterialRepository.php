@@ -40,4 +40,55 @@ class DoctrineCustomerMaterialRepository extends ServiceEntityRepository impleme
     {
         return $this->find($id);
     }
+
+    /**
+     * Find customer material by POSNR (SAP position number)
+     * 
+     * @param string $posnr 6-digit SAP position number
+     * @param string|null $customerId Optional customer filter
+     * @param string|null $salesOrg Optional sales organization filter
+     * @return CustomerMaterial|null
+     */
+    public function findByPosnr(
+        string $posnr,
+        ?string $customerId = null,
+        ?string $salesOrg = null
+    ): ?CustomerMaterial {
+        $qb = $this->createQueryBuilder('cm')
+            ->where('cm.posnr = :posnr')
+            ->setParameter('posnr', $posnr);
+
+        if ($customerId !== null) {
+            $qb->andWhere('cm.customer_id = :customerId')
+               ->setParameter('customerId', $customerId);
+        }
+
+        if ($salesOrg !== null) {
+            $qb->andWhere('cm.sales_org = :salesOrg')
+               ->setParameter('salesOrg', $salesOrg);
+        }
+
+        return $qb->getQuery()->getOneOrNullResult();
+    }
+
+    /**
+     * Find all materials for customer and sales organization
+     * 
+     * @param string $customerId
+     * @param string $salesOrg
+     * @return CustomerMaterial[]
+     */
+    public function findByCustomerAndSalesOrg(
+        string $customerId,
+        string $salesOrg
+    ): array {
+        return $this->createQueryBuilder('cm')
+            ->where('cm.customer_id = :customerId')
+            ->andWhere('cm.sales_org = :salesOrg')
+            ->setParameter('customerId', $customerId)
+            ->setParameter('salesOrg', $salesOrg)
+            ->orderBy('cm.material_number', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }

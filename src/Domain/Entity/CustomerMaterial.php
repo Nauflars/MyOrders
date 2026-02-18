@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Entity;
 
+use App\Domain\ValueObject\Posnr;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -11,12 +12,16 @@ use Doctrine\ORM\Mapping as ORM;
  * 
  * Represents the relationship between a customer and a material
  * with customer-specific pricing and availability information.
+ * 
+ * Includes POSNR (SAP position number) required for accurate price retrieval.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'customer_materials')]
-#[ORM\UniqueConstraint(name: 'customer_material_unique', columns: ['customer_id', 'material_id'])]
+#[ORM\UniqueConstraint(name: 'customer_material_salesorg_unique', columns: ['customer_id', 'material_id', 'sales_org'])]
 #[ORM\Index(columns: ['customer_id'], name: 'idx_customer')]
 #[ORM\Index(columns: ['material_id'], name: 'idx_material')]
+#[ORM\Index(columns: ['posnr'], name: 'idx_posnr')]
+#[ORM\Index(columns: ['customer_id', 'sales_org'], name: 'idx_customer_salesorg')]
 class CustomerMaterial
 {
     #[ORM\Id]
@@ -30,6 +35,12 @@ class CustomerMaterial
     #[ORM\ManyToOne(targetEntity: Material::class, inversedBy: 'customerMaterials')]
     #[ORM\JoinColumn(name: 'material_id', nullable: false, onDelete: 'CASCADE')]
     private Material $material;
+
+    #[ORM\Column(type: 'string', length: 10, name: 'sales_org', nullable: true)]
+    private ?string $salesOrg;
+
+    #[ORM\Column(type: 'string', length: 6, nullable: true)]
+    private ?string $posnr; // SAP position number for price retrieval
 
     #[ORM\Column(type: 'decimal', precision: 13, scale: 2, nullable: true)]
     private ?string $price;
@@ -76,11 +87,14 @@ class CustomerMaterial
     public function __construct(
         string $id,
         Customer $customer,
-        Material $material
+        Material $material,
+        ?string $salesOrg = null
     ) {
         $this->id = $id;
         $this->customer = $customer;
         $this->material = $material;
+        $this->salesOrg = $salesOrg;
+        $this->posnr = null;
         $this->price = null;
         $this->currency = null;
         $this->priceUnit = null;
@@ -145,5 +159,57 @@ class CustomerMaterial
     public function getCurrency(): ?string
     {
         return $this->currency;
+    }
+
+    public function getSalesOrg(): ?string
+    {
+        return $this->salesOrg;
+    }
+
+    public function setSalesOrg(string $salesOrg): void
+    {
+        $this->salesOrg = $salesOrg;
+        $this->updatedAt = new \DateTimeImmutable();
+    }
+
+    /**
+     * Get POSNR value object (null if not set)
+     */
+    public function getPosnr(): ?Posnr
+    {
+        return $this->posnr !== null ? Posnr::fromString($this->posnr) : null;
+    }
+
+    /**
+     * Get raw POSNR string for database operations
+     */
+    public function getPosnrValue(): ?string
+    {
+        return $this->posnr;
+    }
+
+    /**
+     * Set POSNR from value object
+     */
+    public function setPosnr(Posnr $posnr): void
+    {
+        $this->posnr = $posnr->value();
+        $this->updatedAt = new \DateTimeImmutable();
+    }
+
+    /**
+     * Set POSNR from string (validates via value object)
+     */
+    public function setPosnrFromString(string $posnr): void
+    {
+        $this->setPosnr(Posnr::fromString($posnr));
+    }
+
+    /**
+     * Check if POSNR is set
+     */
+    public function hasPosnr(): bool
+    {
+        return $this->posnr !== null;
     }
 }

@@ -242,7 +242,20 @@
             <p>Customer: {{ customer.name }} ({{ customer.sap_id }}) | Sales Org: {{ customer.sales_org }}</p>
         </div>
 
-        <div class="sync-status {% if sync_stats.async_count > 0 %}syncing{% else %}complete{% endif %}" id="syncStatus">
+        {# Include progress bar partial #}
+        {% include 'catalog/progress-bar.html.twig' with {
+            'customerId': customer.sap_id,
+            'salesOrg': customer.sales_org
+        } %}
+
+        {# Include search box partial #}
+        {% include 'catalog/search-box.html.twig' with {
+            'customerId': customer.sap_id,
+            'searchTerm': app.request.get('q', ''),
+            'semanticEnabled': app.request.get('semantic', '0') == '1'
+        } %}
+
+        <div class="sync-status {% if sync_stats.async_count > 0 %}syncing{% else %}complete{% endif %}" id="syncStatus" style="display: none;">
             <div class="sync-header">
                 <div class="sync-label">
                     {% if sync_stats.async_count > 0 %}

@@ -1,0 +1,274 @@
+{# Search box partial with debounced search and semantic toggle #}
+<div class="search-container">
+    <div class="search-box">
+        <div class="search-input-wrapper">
+            <input 
+                type="text" 
+                id="searchInput" 
+                class="search-input" 
+                placeholder="Search materials by number or description..."
+                value="{{ searchTerm|default('') }}"
+                data-search-url="{{ path('app_catalog_search') }}"
+                data-customer-id="{{ customerId }}"
+            >
+            <button class="search-clear" id="searchClear" style="display: none;">✕</button>
+        </div>
+        
+        <div class="search-options">
+            <label class="search-toggle">
+                <input type="checkbox" id="semanticSearch" {{ semanticEnabled|default(false) ? 'checked' : '' }}>
+                <span class="toggle-label">
+                    🧠 Semantic Search
+                    <span class="toggle-hint">(Natural language)</span>
+                </span>
+            </label>
+            
+            <span class="search-count" id="searchCount"></span>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const searchInput = document.getElementById('searchInput');
+    const searchClear = document.getElementById('searchClear');
+    const semanticCheckbox = document.getElementById('semanticSearch');
+    const searchCount = document.getElementById('searchCount');
+    
+    if (!searchInput) return;
+    
+    const searchUrl = searchInput.dataset.searchUrl;
+    const customerId = searchInput.dataset.customerId;
+    
+    let debounceTimer = null;
+    let currentRequest = null;
+    
+    function showClearButton() {
+        if (searchInput.value.trim()) {
+            searchClear.style.display = 'block';
+        } else {
+            searchClear.style.display = 'none';
+        }
+    }
+    
+    function performSearch() {
+        const query = searchInput.value.trim();
+        const useSemantic = semanticCheckbox.checked;
+        
+        // Cancel previous request
+        if (currentRequest) {
+            currentRequest.abort();
+        }
+        
+        // If empty, reload page to show all
+        if (!query) {
+            window.location.href = `${searchUrl}?customer_id=${customerId}`;
+            return;
+        }
+        
+        // Show loading state
+        searchCount.textContent = 'Searching...';
+        
+        // Create new request
+        currentRequest = new AbortController();
+        
+        fetch(`${searchUrl}?customer_id=${customerId}&q=${encodeURIComponent(query)}&semantic=${useSemantic ? '1' : '0'}`, {
+            signal: currentRequest.signal
+        })
+            .then(res => res.json())
+            .then(data => {
+                // Update results count
+                searchCount.textContent = `${data.total} result${data.total !== 1 ? 's' : ''}`;
+                
+                // Update materials grid
+                updateMaterialsGrid(data.materials);
+                
+                // Update URL without reload
+                const url = new URL(window.location);
+                url.searchParams.set('q', query);
+                url.searchParams.set('semantic', useSemantic ? '1' : '0');
+                window.history.pushState({}, '', url);
+            })
+            .catch(err => {
+                if (err.name !== 'AbortError') {
+                    console.error('Search failed:', err);
+                    searchCount.textContent = 'Search failed';
+                }
+            })
+            .finally(() => {
+                currentRequest = null;
+            });
+    }
+    
+    function updateMaterialsGrid(materials) {
+        const grid = document.querySelector('.materials-grid');
+        if (!grid) return;
+        
+        if (materials.length === 0) {
+            grid.innerHTML = '<div class="no-results">No materials found matching your search.</div>';
+            return;
+        }
+        
+        // TODO: Update this template based on your material card structure
+        grid.innerHTML = materials.map(mat => `
+            <div class="material-card">
+                <div class="material-number">${mat.materialNumber || mat.material_number}</div>
+                <div class="material-name">${mat.description || 'No description'}</div>
+                ${mat.price ? `<div class="price">${mat.price} ${mat.currency || 'EUR'}</div>` : ''}
+                ${mat.similarity ? `<div class="similarity-score">Relevance: ${Math.round(mat.similarity * 100)}%</div>` : ''}
+            </div>
+        `).join('');
+    }
+    
+    // Debounced search on input
+    searchInput.addEventListener('input', () => {
+        showClearButton();
+        
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            performSearch();
+        }, 500); // 500ms debounce
+    });
+    
+    // Search on Enter key
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            clearTimeout(debounceTimer);
+            performSearch();
+        }
+    });
+    
+    // Clear button
+    searchClear.addEventListener('click', () => {
+        searchInput.value = '';
+        showClearButton();
+        performSearch();
+    });
+    
+    // Semantic toggle
+    semanticCheckbox.addEventListener('change', () => {
+        if (searchInput.value.trim()) {
+            performSearch();
+        }
+    });
+    
+    // Initial state
+    showClearButton();
+    if (searchInput.value.trim()) {
+        // Count already displayed results
+        const grid = document.querySelector('.materials-grid');
+        if (grid) {
+            const count = grid.querySelectorAll('.material-card').length;
+            searchCount.textContent = `${count} result${count !== 1 ? 's' : ''}`;
+        }
+    }
+})();
+</script>
+
+<style>
+.search-container {
+    margin-bottom: 20px;
+}
+
+.search-box {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.search-input-wrapper {
+    position: relative;
+    margin-bottom: 12px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 12px 40px 12px 16px;
+    font-size: 16px;
+    border: 2px solid #EAEAEA;
+    border-radius: 8px;
+    transition: border-color 0.2s;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #06038D;
+}
+
+.search-clear {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #A9A8B4;
+    color: #fff;
+    border: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.search-clear:hover {
+    background: #06038D;
+}
+
+.search-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.search-toggle {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.search-toggle input[type="checkbox"] {
+    margin-right: 8px;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.toggle-label {
+    font-size: 14px;
+    color: #333333;
+    font-weight: 500;
+}
+
+.toggle-hint {
+    font-size: 12px;
+    color: #A9A8B4;
+    font-weight: 400;
+    margin-left: 4px;
+}
+
+.search-count {
+    font-size: 14px;
+    color: #A9A8B4;
+}
+
+.no-results {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px;
+    color: #A9A8B4;
+    font-size: 16px;
+}
+
+.similarity-score {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #1AA04F;
+    font-weight: 600;
+}
+</style>

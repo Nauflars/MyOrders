@@ -2,25 +2,60 @@ framework:
     messenger:
         failure_transport: failed
 
+        # Middleware configuration
+        buses:
+            messenger.bus.default:
+                middleware:
+                    - 'App\Infrastructure\Messaging\Middleware\SyncLockMiddleware'
+
         transports:
-            # https://symfony.com/doc/current/messenger.html#transport-configuration
-            async:
-                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
-                options:
-                    auto_setup: true
+            # Priority queues for async message processing
+            async_priority_high:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%/async_priority_high'
                 retry_strategy:
                     max_retries: 3
                     multiplier: 2
+                    delay: 1000  # 1 second initial delay
+            
+            async_priority_normal:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%/async_priority_normal'
+                retry_strategy:
+                    max_retries: 3
+                    multiplier: 2
+                    delay: 1000
+            
+            async_priority_low:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%/async_priority_low'
+                retry_strategy:
+                    max_retries: 3
+                    multiplier: 2
+                    delay: 1000
+            
+            # Legacy async transport (keep for backward compatibility)
+            async:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%/async'
+                retry_strategy:
+                    max_retries: 3
+                    multiplier: 2
+            
             failed: 'doctrine://default?queue_name=failed'
-            # sync: 'sync://'
 
         routing:
-            # Route your messages to the transports
-            # SAP Sync Commands - async processing
-            'App\Application\Command\SyncCustomerFromSapCommand': async
-            'App\Application\Command\SyncMaterialsFromSapCommand': async
-            'App\Application\Command\SyncMaterialPriceCommand': async
-            # Domain commands
+            # High priority - SAP operations and distributed locking
+            'App\Application\Command\SyncMaterialPriceCommand': async_priority_high
+            'App\Application\Command\AcquireSyncLockCommand': async_priority_high
+            'App\Application\Command\SyncCustomerFromSapCommand': async_priority_high
+            'App\Application\Command\SyncMaterialsFromSapCommand': async_priority_high
+            'App\Application\Command\SyncUserMaterialsCommand': async_priority_high
+            
+            # Normal priority - Embedding generation
+            'App\Application\Command\GenerateEmbeddingCommand': async_priority_normal
+            
+            # Low priority - MongoDB updates and events
+            'App\Application\Event\MaterialSyncedEvent': async_priority_low
+            'App\Application\Event\PriceFetchedEvent': async_priority_low
+            
+            # Legacy commands (keep for backward compatibility)
             'App\Application\Command\CreateOrderCommand': async
 
 when@test:
