@@ -8,7 +8,7 @@ use App\Application\Command\SyncMaterialPriceCommand;
 use App\Application\Command\SyncMaterialsFromSapCommand;
 use App\Domain\Entity\Material;
 use App\Domain\Repository\MaterialRepositoryInterface;
-use App\Infrastructure\ExternalApi\SapApiClient;
+use App\Infrastructure\ExternalApi\SapApiClientInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -17,7 +17,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
 final readonly class SyncMaterialsFromSapHandler
 {
     public function __construct(
-        private SapApiClient $sapApiClient,
+        private SapApiClientInterface $sapApiClient,
         private MaterialRepositoryInterface $materialRepository,
         private MessageBusInterface $messageBus,
         private LoggerInterface $logger

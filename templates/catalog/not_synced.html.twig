@@ -105,6 +105,7 @@
             padding: 12px;
             border-radius: 8px;
             display: none;
+            font-size: 14px;
         }
 
         .message.success {
@@ -117,6 +118,23 @@
             background: #f8d7da;
             color: #721c24;
             display: block;
+        }
+
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            display: block;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s infinite;
         }
     </style>
 </head>
@@ -145,14 +163,17 @@
     </div>
 
     <script>
+        let checkInterval = null;
+        
         async function startSync() {
             const button = document.getElementById('syncButton');
             const message = document.getElementById('message');
             
-            console.log('Starting sync...');
+            console.log('Starting sync for customer {{ customer_id }}, sales org {{ sales_org }}');
             
             button.disabled = true;
-            button.textContent = 'Synchronizing...';
+            button.textContent = 'Starting Sync';
+            button.classList.add('loading');
             message.className = 'message';
             message.style.display = 'none';
             
@@ -179,30 +200,81 @@
                 
                 if (response.ok) {
                     message.className = 'message success';
-                    message.textContent = 'Synchronization started! Redirecting...';
+                    message.textContent = '✓ Synchronization started! Checking status...';
                     message.style.display = 'block';
                     
-                    console.log('Redirecting in 2 seconds...');
+                    button.textContent = 'Syncing';
+                    button.classList.remove('loading');
                     
-                    // Redirect to catalog page after 2 seconds
-                    setTimeout(() => {
-                        window.location.href = '/catalog/{{ sales_org }}/{{ customer_id }}';
-                    }, 2000);
+                    console.log('Starting to check for sync completion...');
+                    
+                    // Start checking if customer is synced
+                    checkSyncStatus();
                 } else {
                     throw new Error(data.error || 'Synchronization failed');
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error starting sync:', error);
                 message.className = 'message error';
-                message.textContent = 'Error: ' + error.message;
+                message.textContent = '✗ Error: ' + error.message;
                 message.style.display = 'block';
                 button.disabled = false;
                 button.textContent = 'Start Synchronization';
+                button.classList.remove('loading');
             }
+        }
+        
+        async function checkSyncStatus() {
+            const message = document.getElementById('message');
+            const button = document.getElementById('syncButton');
+            
+            let attempts = 0;
+            const maxAttempts = 60; // 60 attempts * 3 seconds = 3 minutes max
+            
+            checkInterval = setInterval(async () => {
+                attempts++;
+                console.log(`Checking sync status (attempt ${attempts}/${maxAttempts})...`);
+                
+                try {
+                    // Check if the catalog page returns data (customer synced)
+                    const response = await fetch('/catalog/{{ sales_org }}/{{ customer_id }}', {
+                        method: 'GET'
+                    });
+                    
+                    const html = await response.text();
+                    
+                    // If the response contains the material-catalog content, sync is done
+                    if (html.includes('Material Catalog') || html.includes('materials-grid')) {
+                        console.log('Customer synced! Redirecting...');
+                        clearInterval(checkInterval);
+                        
+                        message.className = 'message success';
+                        message.textContent = '✓ Synchronization complete! Redirecting...';
+                        
+                        setTimeout(() => {
+                            window.location.href = '/catalog/{{ sales_org }}/{{ customer_id }}';
+                        }, 1000);
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(checkInterval);
+                        message.className = 'message info';
+                        message.textContent = 'Sync is taking longer than expected. Click button to refresh.';
+                        button.disabled = false;
+                        button.textContent = 'Refresh Page';
+                        button.onclick = () => location.reload();
+                    } else {
+                        message.className = 'message info';
+                        message.textContent = `⟳ Syncing... (${attempts}/${maxAttempts})`;
+                        message.style.display = 'block';
+                    }
+                } catch (error) {
+                    console.error('Error checking status:', error);
+                }
+            }, 3000); // Check every 3 seconds
         }
         
         // Log that script loaded
         console.log('Sync script loaded successfully');
+        console.log('Customer ID: {{ customer_id }}, Sales Org: {{ sales_org }}');
     </script>
 </body>
 </html>

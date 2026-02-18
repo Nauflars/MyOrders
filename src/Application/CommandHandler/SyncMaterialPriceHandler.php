@@ -9,7 +9,7 @@ use App\Domain\Entity\CustomerMaterial;
 use App\Domain\Repository\CustomerMaterialRepositoryInterface;
 use App\Domain\Repository\CustomerRepositoryInterface;
 use App\Domain\Repository\MaterialRepositoryInterface;
-use App\Infrastructure\ExternalApi\SapApiClient;
+use App\Infrastructure\ExternalApi\SapApiClientInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -17,7 +17,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 final readonly class SyncMaterialPriceHandler
 {
     public function __construct(
-        private SapApiClient $sapApiClient,
+        private SapApiClientInterface $sapApiClient,
         private CustomerRepositoryInterface $customerRepository,
         private MaterialRepositoryInterface $materialRepository,
         private CustomerMaterialRepositoryInterface $customerMaterialRepository,

@@ -55,11 +55,12 @@ services:
       retries: 3
       start_period: 30s
 
-  # Messenger Worker (Async Job Processing)
-  worker:
+  # Messenger Worker 1 (Async Job Processing)
+  worker1:
     build:
       context: .
       dockerfile: docker/php/Dockerfile
+    container_name: myorders-worker1
     command: php bin/console messenger:consume async --time-limit=3600 --memory-limit=512M -vv
     volumes:
       - .:/var/www/html
@@ -81,8 +82,34 @@ services:
     networks:
       - myorders-network
     restart: unless-stopped
-    deploy:
-      replicas: 2
+
+  # Messenger Worker 2 (Async Job Processing)
+  worker2:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: myorders-worker2
+    command: php bin/console messenger:consume async --time-limit=3600 --memory-limit=512M -vv
+    volumes:
+      - .:/var/www/html
+      - ./var/cache:/var/www/html/var/cache
+      - ./var/log:/var/www/html/var/log
+    environment:
+      - APP_ENV=${APP_ENV:-dev}
+      - APP_SECRET=${APP_SECRET:-change-this-secret}
+      - DATABASE_URL=${DATABASE_URL}
+      - MONGODB_URL=${MONGODB_URL}
+      - MESSENGER_TRANSPORT_DSN=${MESSENGER_TRANSPORT_DSN}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - myorders-network
+    restart: unless-stopped
 
   # MySQL Database (Source of Truth)
   mysql:

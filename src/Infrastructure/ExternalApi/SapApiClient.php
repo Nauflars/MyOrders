@@ -12,7 +12,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * 
  * Handles communication with SAP ERP system via REST APIs.
  */
-final readonly class SapApiClient
+final readonly class SapApiClient implements SapApiClientInterface
 {
     private const BASE_URL = 'https://erpqas.werfen.com/zsapui5_json';
     private const USERNAME = 'ZWEBSERVICE';

@@ -3,8 +3,14 @@ FROM php:8.3-fpm-alpine
 # Install system dependencies (minimal for US1 - Welcome Page)
 RUN apk add --no-cache git curl zip unzip bash
 
-# Install PHP extensions (only essentials for MySQL + Symfony)
+# Install PHP extensions (only essentials for MySQL + Symfony + MongoDB)
 RUN docker-php-ext-install pdo pdo_mysql opcache
+
+# Install MongoDB and AMQP extensions
+RUN apk add --no-cache autoconf g++ make rabbitmq-c-dev \
+    && pecl install mongodb amqp \
+    && docker-php-ext-enable mongodb amqp \
+    && apk del autoconf g++ make
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
