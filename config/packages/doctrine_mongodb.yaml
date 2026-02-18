@@ -1,0 +1,16 @@
+doctrine_mongodb:
+    connections:
+        default:
+            server: '%env(resolve:MONGODB_URL)%'
+            options: {}
+    default_database: '%env(resolve:MONGODB_DB)%'
+    document_managers:
+        default:
+            auto_mapping: true
+            mappings:
+                App:
+                    type: attribute
+                    is_bundle: false
+                    dir: '%kernel.project_dir%/src/Infrastructure/Persistence/MongoDB/Document'
+                    prefix: 'App\Infrastructure\Persistence\MongoDB\Document'
+                    alias: App

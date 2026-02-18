@@ -1,0 +1,202 @@
+version: '3.8'
+
+services:
+  # Nginx Web Server
+  nginx:
+    image: nginx:alpine
+    container_name: myorders-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./public:/var/www/html/public:ro
+      - ./var/log/nginx:/var/log/nginx
+    depends_on:
+      php:
+        condition: service_healthy
+    networks:
+      - myorders-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # PHP-FPM Application Server
+  php:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: myorders-php
+    volumes:
+      - .:/var/www/html
+      - ./var/cache:/var/www/html/var/cache
+      - ./var/log:/var/www/html/var/log
+    environment:
+      - APP_ENV=${APP_ENV:-dev}
+      - APP_SECRET=${APP_SECRET:-change-this-secret}
+      - DATABASE_URL=${DATABASE_URL}
+      - MONGODB_URL=${MONGODB_URL}
+      - MESSENGER_TRANSPORT_DSN=${MESSENGER_TRANSPORT_DSN}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - myorders-network
+    healthcheck:
+      test: ["CMD", "php", "-v"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # Messenger Worker (Async Job Processing)
+  worker:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    command: php bin/console messenger:consume async --time-limit=3600 --memory-limit=512M -vv
+    volumes:
+      - .:/var/www/html
+      - ./var/cache:/var/www/html/var/cache
+      - ./var/log:/var/www/html/var/log
+    environment:
+      - APP_ENV=${APP_ENV:-dev}
+      - APP_SECRET=${APP_SECRET:-change-this-secret}
+      - DATABASE_URL=${DATABASE_URL}
+      - MONGODB_URL=${MONGODB_URL}
+      - MESSENGER_TRANSPORT_DSN=${MESSENGER_TRANSPORT_DSN}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - myorders-network
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+
+  # MySQL Database (Source of Truth)
+  mysql:
+    image: mysql:8.0
+    container_name: myorders-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-root_password}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-myorders_db}
+      - MYSQL_USER=${MYSQL_USER:-myorders_user}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-myorders_password}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - myorders-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root_password}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # MongoDB Database (Read Models & Embeddings)
+  mongodb:
+    image: mongo:7.0
+    container_name: myorders-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME:-myorders_user}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD:-myorders_password}
+      - MONGO_INITDB_DATABASE=${MONGO_INITDB_DATABASE:-myorders}
+    volumes:
+      - mongodb-data:/data/db
+      - mongodb-config:/data/configdb
+    networks:
+      - myorders-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # RabbitMQ Message Broker (CQRS & Async Processing)
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: myorders-rabbitmq
+    ports:
+      - "5672:5672"    # AMQP protocol
+      - "15672:15672"  # Management UI
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER:-guest}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS:-guest}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - myorders-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # phpMyAdmin - MySQL Database Management
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: myorders-phpmyadmin
+    ports:
+      - "8080:80"
+    environment:
+      - PMA_HOST=mysql
+      - PMA_PORT=3306
+      - PMA_USER=${MYSQL_USER:-myorders_user}
+      - PMA_PASSWORD=${MYSQL_PASSWORD:-myorders_password}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-root_password}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - myorders-network
+
+  # mongo-express - MongoDB Database Management
+  mongo-express:
+    image: mongo-express:latest
+    container_name: myorders-mongo-express
+    ports:
+      - "8081:8081"
+    environment:
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=${MONGO_INITDB_ROOT_USERNAME:-myorders_user}
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=${MONGO_INITDB_ROOT_PASSWORD:-myorders_password}
+      - ME_CONFIG_MONGODB_URL=mongodb://${MONGO_INITDB_ROOT_USERNAME:-myorders_user}:${MONGO_INITDB_ROOT_PASSWORD:-myorders_password}@mongodb:27017/
+      - ME_CONFIG_BASICAUTH_USERNAME=${MONGO_EXPRESS_USER:-admin}
+      - ME_CONFIG_BASICAUTH_PASSWORD=${MONGO_EXPRESS_PASSWORD:-admin}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - myorders-network
+
+# Persistent Volumes
+volumes:
+  mysql-data:
+    driver: local
+  mongodb-data:
+    driver: local
+  mongodb-config:
+    driver: local
+  rabbitmq-data:
+    driver: local
+
+# Custom Network
+networks:
+  myorders-network:
+    driver: bridge

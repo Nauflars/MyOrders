@@ -1,0 +1,15 @@
+framework:
+    http_client:
+        default_options:
+            timeout: 30
+            max_redirects: 3
+        
+        scoped_clients:
+            sap.client:
+                base_uri: 'https://erpqas.werfen.com/zsapui5_json'
+                timeout: 30
+                verify_peer: false
+                verify_host: false
+                headers:
+                    'Content-Type': 'application/json'
+                    'Accept': 'application/json'

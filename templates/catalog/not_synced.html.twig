@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Not Synced</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #06038D 0%, #E87722 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 48px;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .icon {
+            font-size: 64px;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            color: #333333;
+            font-size: 28px;
+            margin-bottom: 16px;
+        }
+
+        p {
+            color: #A9A8B4;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .info {
+            background: #F5F5F5;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 24px 0;
+            text-align: left;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #EAEAEA;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #A9A8B4;
+            font-weight: 600;
+        }
+
+        .info-value {
+            color: #333333;
+            font-family: monospace;
+        }
+
+        .button {
+            display: inline-block;
+            background: #E87722;
+            color: #fff;
+            padding: 14px 32px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            background: #06038D;
+        }
+
+        .button:disabled {
+            background: #D9D9D9;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .message {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">🔍</div>
+        <h1>Customer Not Found</h1>
+        <p>This customer has not been synchronized yet. Please trigger a synchronization first.</p>
+        
+        <div class="info">
+            <div class="info-row">
+                <span class="info-label">Sales Organization</span>
+                <span class="info-value">{{ sales_org }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Customer ID</span>
+                <span class="info-value">{{ customer_id }}</span>
+            </div>
+        </div>
+
+        <button onclick="startSync()" class="button" id="syncButton">
+            Start Synchronization
+        </button>
+        
+        <div id="message" class="message"></div>
+    </div>
+
+    <script>
+        async function startSync() {
+            const button = document.getElementById('syncButton');
+            const message = document.getElementById('message');
+            
+            console.log('Starting sync...');
+            
+            button.disabled = true;
+            button.textContent = 'Synchronizing...';
+            message.className = 'message';
+            message.style.display = 'none';
+            
+            try {
+                const payload = {
+                    salesOrg: '{{ sales_org }}',
+                    customerId: '{{ customer_id }}'
+                };
+                
+                console.log('Sending request:', payload);
+                
+                const response = await fetch('/api/sap/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                console.log('Response status:', response.status);
+                
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                if (response.ok) {
+                    message.className = 'message success';
+                    message.textContent = 'Synchronization started! Redirecting...';
+                    message.style.display = 'block';
+                    
+                    console.log('Redirecting in 2 seconds...');
+                    
+                    // Redirect to catalog page after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = '/catalog/{{ sales_org }}/{{ customer_id }}';
+                    }, 2000);
+                } else {
+                    throw new Error(data.error || 'Synchronization failed');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                message.className = 'message error';
+                message.textContent = 'Error: ' + error.message;
+                message.style.display = 'block';
+                button.disabled = false;
+                button.textContent = 'Start Synchronization';
+            }
+        }
+        
+        // Log that script loaded
+        console.log('Sync script loaded successfully');
+    </script>
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+            animation: fadeIn 0.6s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .description {
+            color: #666;
+            font-size: 1.1em;
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .features {
+            list-style: none;
+            margin: 30px 0;
+        }
+        
+        .features li {
+            padding: 15px;
+            margin: 10px 0;
+            background: linear-gradient(to right, #f8f9fa, #ffffff);
+            border-left: 4px solid #667eea;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .features li:hover {
+            transform: translateX(10px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+        
+        .features li::before {
+            content: "✓";
+            color: #667eea;
+            font-weight: bold;
+            margin-right: 10px;
+            font-size: 1.2em;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
+            text-align: center;
+            color: #999;
+            font-size: 0.9em;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 5px 15px;
+            background: #667eea;
+            color: white;
+            border-radius: 20px;
+            font-size: 0.8em;
+            margin-top: 10px;
+        }
+        
+        .tech-stack {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 30px;
+        }
+        
+        .tech-badge {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛒 {{ title }}</h1>
+        
+        <p class="description">{{ description }}</p>
+        
+        <h2 style="color: #764ba2; margin-bottom: 15px; text-align: center;">🏗️ Architecture Features</h2>
+        
+        <ul class="features">
+            {% for feature in features %}
+                <li>{{ feature }}</li>
+            {% endfor %}
+        </ul>
+        
+        <div class="tech-stack">
+            <span class="tech-badge">Symfony 7.4</span>
+            <span class="tech-badge">PHP 8.3</span>
+            <span class="tech-badge">Docker</span>
+            <span class="tech-badge">MySQL 8.0</span>
+            <span class="tech-badge">MongoDB 7.0</span>
+            <span class="tech-badge">RabbitMQ 3</span>
+        </div>
+        
+        <div class="footer">
+            <p>Environment: <span class="badge">{{ environment }}</span></p>
+            <p style="margin-top: 15px;">Built with ❤️ following Constitutional Principles v1.0.0</p>
+        </div>
+    </div>
+</body>
+</html>
