@@ -81,6 +81,18 @@ class CustomerMaterial
         $this->id = $id;
         $this->customer = $customer;
         $this->material = $material;
+        $this->price = null;
+        $this->currency = null;
+        $this->priceUnit = null;
+        $this->weight = null;
+        $this->weightUnit = null;
+        $this->volume = null;
+        $this->volumeUnit = null;
+        $this->isAvailable = true;
+        $this->minimumOrderQuantity = null;
+        $this->availabilityDays = null;
+        $this->sapPriceData = [];
+        $this->priceUpdatedAt = null;
         $this->createdAt = new \DateTimeImmutable();
         $this->updatedAt = new \DateTimeImmutable();
     }
