@@ -30,10 +30,12 @@ final readonly class SyncMaterialPriceHandler
         $this->logger->debug('Starting SAP material price sync', [
             'customer_id' => $command->customerId,
             'material_number' => $command->materialNumber,
+            'sales_org' => $command->salesOrg,
+            'posnr' => $command->posnr,
         ]);
 
         try {
-            // Get material price from SAP
+            // Get material price from SAP with POSNR for accurate pricing
             $sapData = $this->sapApiClient->getMaterialPrice(
                 $command->customerId,
                 $command->materialNumber,
@@ -41,20 +43,16 @@ final readonly class SyncMaterialPriceHandler
                 $command->tvakData,
                 $command->customerData,
                 $command->weData,
-                $command->rgData
+                $command->rgData,
+                $command->posnr // Include POSNR for accurate price retrieval
             );
 
             // Find customer and material
-            $salesOrg = $command->tvkoData['VKORG'] ?? null;
-            if (!$salesOrg) {
-                $this->logger->error('Sales org not found in TVKO data');
-                return;
-            }
-
-            $customer = $this->customerRepository->findBySapId($command->customerId, $salesOrg);
+            $customer = $this->customerRepository->findBySapId($command->customerId, $command->salesOrg);
             if (!$customer) {
                 $this->logger->error('Customer not found', [
                     'customer_id' => $command->customerId,
+                    'sales_org' => $command->salesOrg,
                 ]);
                 return;
             }
@@ -77,12 +75,14 @@ final readonly class SyncMaterialPriceHandler
                 $customerMaterial = new CustomerMaterial(
                     id: \Symfony\Component\Uid\Uuid::v4()->toRfc4122(),
                     customer: $customer,
-                    material: $material
+                    material: $material,
+                    salesOrg: $command->salesOrg
                 );
                 
                 $this->logger->debug('Creating new customer-material relationship', [
                     'customer_id' => $command->customerId,
                     'material_number' => $command->materialNumber,
+                    'sales_org' => $command->salesOrg,
                 ]);
             }
 
@@ -93,12 +93,18 @@ final readonly class SyncMaterialPriceHandler
                 $this->logger->warning('No material price data in SAP response', [
                     'customer_id' => $command->customerId,
                     'material_number' => $command->materialNumber,
+                    'posnr' => $command->posnr,
                 ]);
                 return;
             }
             
             $price = $materialData['NETPR'] ?? '0.00';
             $currency = $materialData['WAERK'] ?? 'USD';
+            
+            // Store POSNR if provided
+            if ($command->posnr !== null) {
+                $customerMaterial->setPosnrFromString($command->posnr);
+            }
             
             $customerMaterial->updatePrice($price, $currency, $materialData);
 

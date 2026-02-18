@@ -7,9 +7,16 @@ namespace App\UI\Controller;
 use App\Domain\Repository\CustomerRepositoryInterface;
 use App\Domain\Repository\MaterialRepositoryInterface;
 use App\Domain\Repository\CustomerMaterialRepositoryInterface;
+use App\Application\Query\GetSyncProgressQuery;
+use App\Application\Query\GetCatalogQuery;
+use App\Application\Query\SemanticSearchQuery;
+use App\Application\QueryHandler\GetSyncProgressHandler;
+use App\Application\QueryHandler\GetCatalogHandler;
+use App\Application\QueryHandler\SemanticSearchHandler;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\Transport\Receiver\MessageCountAwareInterface;
 use Symfony\Component\Routing\Annotation\Route;
@@ -21,7 +28,10 @@ class MaterialCatalogController extends AbstractController
         private CustomerRepositoryInterface $customerRepository,
         private MaterialRepositoryInterface $materialRepository,
         private CustomerMaterialRepositoryInterface $customerMaterialRepository,
-        private Connection $connection
+        private Connection $connection,
+        private GetSyncProgressHandler $syncProgressHandler,
+        private GetCatalogHandler $catalogHandler,
+        private SemanticSearchHandler $semanticSearchHandler
     ) {
     }
 
@@ -163,5 +173,78 @@ class MaterialCatalogController extends AbstractController
             'async_count' => (int)$asyncCount,
             'failed_count' => (int)$failedCount,
         ];
+    }
+
+    #[Route('/api/sync/progress', name: 'app_sync_progress', methods: ['GET'])]
+    public function getSyncProgress(Request $request): JsonResponse
+    {
+        $customerId = $request->query->get('customer_id');
+        $salesOrg = $request->query->get('sales_org');
+
+        if (!$customerId || !$salesOrg) {
+            return new JsonResponse(['error' => 'Missing customer_id or sales_org'], 400);
+        }
+
+        $query = new GetSyncProgressQuery($customerId, $salesOrg);
+        $progress = ($this->syncProgressHandler)($query);
+
+        if (!$progress) {
+            return new JsonResponse(null, 204); // No content - no sync in progress
+        }
+
+        return new JsonResponse($progress);
+    }
+
+    #[Route('/api/catalog/search', name: 'app_catalog_search', methods: ['GET'])]
+    public function search(Request $request): JsonResponse
+    {
+        $customerId = $request->query->get('customer_id');
+        $searchTerm = $request->query->get('q', '');
+        $useSemantic = $request->query->get('semantic', '0') === '1';
+        $page = (int) $request->query->get('page', 1);
+        $perPage = (int) $request->query->get('per_page', 50);
+
+        if (!$customerId) {
+            return new JsonResponse(['error' => 'Missing customer_id'], 400);
+        }
+
+        // Use semantic search if enabled and query provided
+        if ($useSemantic && $searchTerm) {
+            $query = new SemanticSearchQuery($customerId, $searchTerm, $perPage);
+            $results = ($this->semanticSearchHandler)($query);
+
+            return new JsonResponse([
+                'materials' => array_map(fn($r) => [
+                    'materialId' => $r['material']->getMaterialId(),
+                    'materialNumber' => $r['material']->getMaterialNumber(),
+                    'description' => $r['material']->getDescription(),
+                    'price' => $r['material']->getPrice(),
+                    'currency' => $r['material']->getCurrency(),
+                    'similarity' => $r['similarity'],
+                ], $results),
+                'total' => count($results),
+                'page' => 1,
+                'per_page' => $perPage,
+                'search_type' => 'semantic',
+            ]);
+        }
+
+        // Regular text search using MongoDB
+        $query = new GetCatalogQuery($customerId, $searchTerm, $page, $perPage);
+        $result = ($this->catalogHandler)($query);
+
+        return new JsonResponse([
+            'materials' => array_map(fn($m) => [
+                'materialId' => $m->getMaterialId(),
+                'materialNumber' => $m->getMaterialNumber(),
+                'description' => $m->getDescription(),
+                'price' => $m->getPrice(),
+                'currency' => $m->getCurrency(),
+            ], $result['materials']),
+            'total' => $result['total'],
+            'page' => $result['page'],
+            'per_page' => $result['per_page'],
+            'search_type' => 'text',
+        ]);
     }
 }

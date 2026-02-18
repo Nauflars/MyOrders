@@ -6,17 +6,16 @@ namespace App\Application\Command;
 
 /**
  * Sync material price for a specific customer from SAP
+ * 
+ * Includes POSNR (SAP position number) for accurate pricing retrieval
  */
 final readonly class SyncMaterialPriceCommand
 {
     public function __construct(
         public string $customerId,
         public string $materialNumber,
-        public array $tvkoData,
-        public array $tvakData,
-        public array $customerData,
-        public array $weData,
-        public array $rgData
+        public string $salesOrg,
+        public ?string $posnr = null
     ) {
     }
 }

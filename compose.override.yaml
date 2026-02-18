@@ -1,13 +1,11 @@
+# Docker Compose Override
+# This file is automatically merged with docker-compose.yml
+# Uncomment services below if you need custom port mappings
 
-services:
-###> doctrine/doctrine-bundle ###
-  database:
-    ports:
-      - "5432"
-###< doctrine/doctrine-bundle ###
-
-###> doctrine/mongodb-odm-bundle ###
-  mongodb:
-    ports:
-      - "27017"
-###< doctrine/mongodb-odm-bundle ###
+# services:
+#   mysql:
+#     ports:
+#       - "3307:3306"
+#   mongodb:
+#     ports:
+#       - "27018:27017"

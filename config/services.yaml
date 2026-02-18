@@ -39,3 +39,18 @@ services:
         resource: '../src/Infrastructure/'
         exclude:
             - '../src/Infrastructure/Persistence/Doctrine/Entity/'
+            - '../src/Infrastructure/Persistence/MongoDB/Document/'
+
+    # OpenAI Embedding Client
+    App\Infrastructure\ExternalApi\OpenAiEmbeddingClient:
+        arguments:
+            $httpClient: '@http_client'
+            $cache: '@cache.openai_embeddings'
+            $logger: '@logger'
+            $apiKey: '%env(OPENAI_API_KEY)%'
+
+    # Redis Sync Lock Repository
+    App\Infrastructure\Persistence\Redis\RedisSyncLockRepository:
+        arguments:
+            $logger: '@logger'
+            $lockDir: '%kernel.project_dir%/var/lock'
