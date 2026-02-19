@@ -90,10 +90,10 @@ final readonly class SyncUserMaterialsHandler
 
                 $this->messageBus->dispatch(
                     new SyncMaterialPriceCommand(
-                        $command->customerId,
-                        $materialId,
-                        $command->salesOrg,
-                        $posnr
+                        customerId: $command->customerId,
+                        materialNumber: $materialId,
+                        salesOrg: $command->salesOrg,
+                        posnr: $posnr
                     )
                 );
 

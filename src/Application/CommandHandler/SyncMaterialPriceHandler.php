@@ -9,6 +9,7 @@ use App\Domain\Entity\CustomerMaterial;
 use App\Domain\Repository\CustomerMaterialRepositoryInterface;
 use App\Domain\Repository\CustomerRepositoryInterface;
 use App\Domain\Repository\MaterialRepositoryInterface;
+use App\Domain\Repository\SyncProgressRepositoryInterface;
 use App\Infrastructure\ExternalApi\SapApiClientInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -21,6 +22,7 @@ final readonly class SyncMaterialPriceHandler
         private CustomerRepositoryInterface $customerRepository,
         private MaterialRepositoryInterface $materialRepository,
         private CustomerMaterialRepositoryInterface $customerMaterialRepository,
+        private SyncProgressRepositoryInterface $syncProgressRepository,
         private LoggerInterface $logger
     ) {
     }
@@ -31,7 +33,7 @@ final readonly class SyncMaterialPriceHandler
             'customer_id' => $command->customerId,
             'material_number' => $command->materialNumber,
             'sales_org' => $command->salesOrg,
-            'posnr' => $command->posnr,
+            'posnr' => $command->posnr ?? 'none',
         ]);
 
         try {
@@ -39,11 +41,11 @@ final readonly class SyncMaterialPriceHandler
             $sapData = $this->sapApiClient->getMaterialPrice(
                 $command->customerId,
                 $command->materialNumber,
-                $command->tvkoData,
-                $command->tvakData,
-                $command->customerData,
-                $command->weData,
-                $command->rgData,
+                $command->tvkoData ?? [],
+                $command->tvakData ?? [],
+                $command->customerData ?? [],
+                $command->weData ?? [],
+                $command->rgData ?? [],
                 $command->posnr // Include POSNR for accurate price retrieval
             );
 
@@ -118,11 +120,33 @@ final readonly class SyncMaterialPriceHandler
                 'currency' => $customerMaterial->getCurrency(),
             ]);
 
+            // Update sync progress
+            if ($command->syncId) {
+                $syncProgress = $this->syncProgressRepository->findById($command->syncId);
+                if ($syncProgress) {
+                    $syncProgress->incrementProcessed();
+                    $this->syncProgressRepository->save($syncProgress);
+                    
+                    $this->logger->debug('Sync progress updated', [
+                        'sync_id' => $command->syncId,
+                        'processed' => $syncProgress->getProcessedMaterials(),
+                        'total' => $syncProgress->getTotalMaterials(),
+                        'percentage' => $syncProgress->getPercentageComplete(),
+                    ]);
+                }
+            }
+
         } catch (\Exception $e) {
-            $this->logger->error('Material price sync failed', [
+            $this->logger->error(sprintf(
+                'Material price sync failed: %s in %s:%d - %s',
+                get_class($e),
+                $e->getFile(),
+                $e->getLine(),
+                $e->getMessage()
+            ), [
                 'customer_id' => $command->customerId,
                 'material_number' => $command->materialNumber,
-                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             // Don't throw - we don't want to fail the entire sync if one price fails

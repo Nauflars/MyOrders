@@ -7,7 +7,9 @@ namespace App\Application\CommandHandler;
 use App\Application\Command\SyncMaterialPriceCommand;
 use App\Application\Command\SyncMaterialsFromSapCommand;
 use App\Domain\Entity\Material;
+use App\Domain\Entity\SyncProgress;
 use App\Domain\Repository\MaterialRepositoryInterface;
+use App\Domain\Repository\SyncProgressRepositoryInterface;
 use App\Infrastructure\ExternalApi\SapApiClientInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -19,6 +21,7 @@ final readonly class SyncMaterialsFromSapHandler
     public function __construct(
         private SapApiClientInterface $sapApiClient,
         private MaterialRepositoryInterface $materialRepository,
+        private SyncProgressRepositoryInterface $syncProgressRepository,
         private MessageBusInterface $messageBus,
         private LoggerInterface $logger
     ) {
@@ -52,6 +55,19 @@ final readonly class SyncMaterialsFromSapHandler
 
             $materialsCount = count($sapData['X_MAT_FOUND']);
             $this->logger->info("Processing {$materialsCount} materials from SAP");
+
+            // Create sync progress tracker
+            $syncProgress = SyncProgress::start(
+                $command->customerId,
+                $command->salesOrg,
+                $materialsCount
+            );
+            $this->syncProgressRepository->save($syncProgress);
+
+            $this->logger->info('Sync progress tracker created', [
+                'sync_id' => $syncProgress->getId(),
+                'total_materials' => $materialsCount,
+            ]);
 
             foreach ($sapData['X_MAT_FOUND'] as $sapMaterial) {
                 $materialNumber = $sapMaterial['MATNR'] ?? null;
@@ -100,7 +116,13 @@ final readonly class SyncMaterialsFromSapHandler
                     customerId: $command->customerId,
                     materialNumber: $materialNumber,
                     salesOrg: $command->tvkoData['VKORG'] ?? '',
-                    posnr: $posnr // Include POSNR for accurate pricing
+                    tvkoData: $command->tvkoData,
+                    tvakData: $command->tvakData,
+                    customerData: $command->customerData,
+                    weData: $command->weData,
+                    rgData: $command->rgData,
+                    posnr: $posnr, // Include POSNR for accurate pricing
+                    syncId: $syncProgress->getId() // Include sync ID for progress tracking
                 ));
             }
 

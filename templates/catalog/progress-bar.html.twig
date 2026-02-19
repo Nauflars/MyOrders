@@ -60,7 +60,13 @@
     
     function updateProgress() {
         fetch(`${pollUrl}?customer_id=${customerId}&sales_org=${salesOrg}`)
-            .then(res => res.json())
+            .then(res => {
+                // Handle 204 No Content (no sync in progress)
+                if (res.status === 204) {
+                    return null;
+                }
+                return res.json();
+            })
             .then(data => {
                 if (!data || !data.status) {
                     // No sync in progress

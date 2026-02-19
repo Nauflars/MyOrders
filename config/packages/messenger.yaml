@@ -38,7 +38,12 @@ framework:
                     max_retries: 3
                     multiplier: 2
             
-            failed: 'doctrine://default?queue_name=failed'
+            # Failed messages transport (changed from doctrine to RabbitMQ)
+            failed:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%/failed'
+                retry_strategy:
+                    max_retries: 3
+                    multiplier: 2
 
         routing:
             # High priority - SAP operations and distributed locking

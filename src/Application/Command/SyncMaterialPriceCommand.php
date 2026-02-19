@@ -15,7 +15,13 @@ final readonly class SyncMaterialPriceCommand
         public string $customerId,
         public string $materialNumber,
         public string $salesOrg,
-        public ?string $posnr = null
+        public ?array $tvkoData = null,
+        public ?array $tvakData = null,
+        public ?array $customerData = null,
+        public ?array $weData = null,
+        public ?array $rgData = null,
+        public ?string $posnr = null,
+        public ?string $syncId = null
     ) {
     }
 }

@@ -5,41 +5,55 @@ declare(strict_types=1);
 namespace App\Application\QueryHandler;
 
 use App\Application\Query\GetSyncProgressQuery;
-use App\Domain\Entity\SyncProgress;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Domain\Repository\SyncProgressRepositoryInterface;
 use Psr\Log\LoggerInterface;
 
 /**
- * GetSyncProgressHandler - Retrieve sync progress from MySQL
+ * GetSyncProgressHandler - Retrieve sync progress from database
  * 
- * Returns current sync status, percentage, and estimated time remaining.
+ * Returns current sync status by querying the sync_progress table.
+ * Each customer has their own isolated progress tracking.
  */
 final readonly class GetSyncProgressHandler
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private SyncProgressRepositoryInterface $syncProgressRepository,
         private LoggerInterface $logger
     ) {
     }
 
     public function __invoke(GetSyncProgressQuery $query): ?array
     {
-        $this->logger->debug('Getting sync progress', [
-            'customer_id' => $query->customerId,
-            'sales_org' => $query->salesOrg,
-        ]);
-
-        $repository = $this->entityManager->getRepository(SyncProgress::class);
-        
-        $syncProgress = $repository->findOneBy([
-            'customerId' => $query->customerId,
-            'salesOrg' => $query->salesOrg,
-        ], ['startedAt' => 'DESC']); // Get most recent
-
-        if (!$syncProgress) {
+        try {
+            // Find active sync for this customer
+            $syncProgress = $this->syncProgressRepository->findActiveByCustomer(
+                $query->customerId,
+                $query->salesOrg
+            );
+            
+            if (!$syncProgress) {
+                return null; // No sync in progress
+            }
+            
+            return [
+                'status' => $syncProgress->getStatus(),
+                'total_materials' => $syncProgress->getTotalMaterials(),
+                'processed_materials' => $syncProgress->getProcessedMaterials(),
+                'percentage_complete' => $syncProgress->getPercentageComplete(),
+                'elapsed_seconds' => $syncProgress->getElapsedSeconds(),
+                'estimated_time_remaining' => $syncProgress->getEstimatedTimeRemaining(),
+                'customer_id' => $query->customerId,
+                'sales_org' => $query->salesOrg,
+                'started_at' => $syncProgress->getStartedAt()->format('Y-m-d H:i:s'),
+            ];
+            
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to get sync progress', [
+                'error' => $e->getMessage(),
+                'customer_id' => $query->customerId,
+                'trace' => $e->getTraceAsString(),
+            ]);
             return null;
         }
-
-        return $syncProgress->toArray();
     }
 }
